@@ -2,13 +2,12 @@ import os
 from pathlib import Path
 import faiss
 import numpy as np
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from dotenv import load_dotenv
 import time
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 print("hello0")
 
 # -- CONFIG --
@@ -28,12 +27,13 @@ def chunk_text(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
     return chunks
 
 def get_embedding(text: str) -> np.ndarray:
-    res = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",
-        contents=text,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+    model = "models/embedding-001"
+    result = genai.embed_content(
+        model=model,
+        content=text,
+        task_type="retrieval_document"
     )
-    return np.array(res.embeddings[0].values, dtype=np.float32)
+    return np.array(result["embedding"], dtype=np.float32)
 
 # -- LOAD DOCS & CHUNK --
 all_chunks = []
@@ -58,14 +58,14 @@ dimension = len(all_chunks[0])
 index = faiss.IndexFlatL2(dimension)
 index.add(np.stack(all_chunks))
 
-print(f"✅ Indexed {len(all_chunks)} chunks from {len(list(DOC_PATH.glob('*.txt')))} documents")
+print(f" Indexed {len(all_chunks)} chunks from {len(list(DOC_PATH.glob('*.txt')))} documents")
 
 # -- SEARCH --
 query = "When will Dhoni retire?"
 query_vec = get_embedding(query).reshape(1, -1)
 D, I = index.search(query_vec, k=3)
 
-print(f"\n🔍 Query: {query}\n\n📚 Top Matches:")
+print(f"\n Query: {query}\n\n Top Matches:")
 for rank, idx in enumerate(I[0]):
     data = metadata[idx]
     print(f"\n#{rank + 1}: From {data['doc_name']} [{data['chunk_id']}]")
