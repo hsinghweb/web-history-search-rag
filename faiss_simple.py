@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import faiss
 import numpy as np
 import os
@@ -7,18 +6,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Load API key
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
+# Configure Gemini API
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Helper: Get Gemini embedding for a text
 def get_embedding(text: str) -> np.ndarray:
-    result = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",
-        contents=text,
-        config=types.EmbedContentConfig(task_type="CLUSTERING") #https://ai.google.dev/gemini-api/docs/embeddings
+    model = "models/embedding-001"
+    result = genai.embed_content(
+        model=model,
+        content=text,
+        task_type="clustering"
     )
-    return np.array(result.embeddings[0].values, dtype=np.float32)
+    return np.array(result["embedding"], dtype=np.float32)
 
 # Step 1: Sentences to index
 sentences = [
