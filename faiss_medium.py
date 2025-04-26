@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import faiss
 import numpy as np
 import os
@@ -8,19 +7,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 🔐 Gemini Setup
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def get_embedding(text: str) -> np.ndarray:
-    result = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",
-        contents=text,
-        config=types.EmbedContentConfig(task_type="CLUSTERING")
+    model = "models/embedding-001"
+    result = genai.embed_content(
+        model=model,
+        content=text,
+        task_type="clustering"
     )
-    return np.array(result.embeddings[0].values, dtype=np.float32)
+    return np.array(result["embedding"], dtype=np.float32)
 
 # 🎭 Corpus of jokes with metadata
 jokes = [
-    {"id": 1, "category": "animals", "text": "Why don’t cows have any money? Because farmers milk them dry."},
+    {"id": 1, "category": "animals", "text": "Why don't cows have any money? Because farmers milk them dry."},
     {"id": 2, "category": "tech", "text": "Why do programmers prefer dark mode? Because light attracts bugs."},
     {"id": 3, "category": "school", "text": "Why did the student eat his homework? Because the teacher said it was a piece of cake."},
     {"id": 4, "category": "classic", "text": "I told my wife she was drawing her eyebrows too high. She looked surprised."},
