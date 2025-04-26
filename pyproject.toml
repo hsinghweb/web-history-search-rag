@@ -3,11 +3,20 @@ name = "web-history-search-rag"
 version = "0.1.0"
 description = "Add a short description here"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "google-generativeai>=0.8.5",
     "numpy>=2.0.2",
     "python-dotenv>=1.1.0",
     "scipy>=1.11.0",
-    "faiss-cpu>=1.10.0"
+    "faiss-cpu>=1.10.0",
+    "dotenv>=0.9.9",
+    "google-genai>=1.12.1",
+    "llama-index>=0.12.33",
+    "llama-index-embeddings-google-genai>=0.1.0",
+    "pillow>=11.2.1",
+    "rich>=14.0.0",
+    "tqdm>=4.67.1",
+    "markitdown[all]>=0.1.1",
+    "mcp[cli]>=1.6.0",
 ]
