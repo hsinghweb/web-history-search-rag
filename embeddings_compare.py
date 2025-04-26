@@ -1,20 +1,20 @@
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import numpy as np
 from scipy.spatial.distance import cosine
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-def get_embedding(text: str, task="RETRIEVAL_DOCUMENT") -> np.ndarray:
-    res = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",
-        contents=text,
-        config=types.EmbedContentConfig(task_type=task)
+def get_embedding(text: str, task="retrieval_document") -> np.ndarray:
+    model = "models/embedding-001"
+    result = genai.embed_content(
+        model=model,
+        content=text,
+        task_type=task
     )
-    return np.array(res.embeddings[0].values, dtype=np.float32)
+    return np.array(result["embedding"], dtype=np.float32)
 
 # 🎯 Phrases to compare
 sentences = [
