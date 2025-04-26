@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import os
 from dotenv import load_dotenv
-from google import genai
+import google.generativeai as genai
 import re
 
 # Optional: import log from agent if shared, else define locally
@@ -15,16 +15,13 @@ except ImportError:
         print(f"[{now}] [{stage}] {msg}")
 
 load_dotenv()
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 class PerceptionResult(BaseModel):
     user_input: str
     intent: Optional[str]
     entities: List[str] = []
     tool_hint: Optional[str] = None
-
 
 def extract_perception(user_input: str) -> PerceptionResult:
     """Extracts intent, entities, and tool hints using LLM"""
@@ -43,10 +40,8 @@ Output only the dictionary on a single line. Do NOT wrap it in ```json or other 
     """
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt
-        )
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
         raw = response.text.strip()
         log("perception", f"LLM output: {raw}")
 
@@ -62,7 +57,6 @@ Output only the dictionary on a single line. Do NOT wrap it in ```json or other 
         # Fix common issues
         if isinstance(parsed.get("entities"), dict):
             parsed["entities"] = list(parsed["entities"].values())
-
 
         return PerceptionResult(user_input=user_input, **parsed)
 

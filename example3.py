@@ -17,7 +17,11 @@ from models import AddInput, AddOutput, SqrtInput, SqrtOutput, StringsToIntsInpu
 from PIL import Image as PILImage
 from tqdm import tqdm
 import hashlib
+import google.generativeai as genai
+from dotenv import load_dotenv
 
+load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 mcp = FastMCP("Calculator")
 
@@ -28,9 +32,13 @@ CHUNK_OVERLAP = 40
 ROOT = Path(__file__).parent.resolve()
 
 def get_embedding(text: str) -> np.ndarray:
-    response = requests.post(EMBED_URL, json={"model": EMBED_MODEL, "prompt": text})
-    response.raise_for_status()
-    return np.array(response.json()["embedding"], dtype=np.float32)
+    model = "models/embedding-001"
+    result = genai.embed_content(
+        model=model,
+        content=text,
+        task_type="retrieval_document"
+    )
+    return np.array(result["embedding"], dtype=np.float32)
 
 def chunk_text(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
     words = text.split()
@@ -282,27 +290,16 @@ def ensure_faiss_ready():
 
 if __name__ == "__main__":
     print("STARTING THE SERVER AT AMAZING LOCATION")
-
-    
     
     if len(sys.argv) > 1 and sys.argv[1] == "dev":
         mcp.run() # Run without transport for dev server
     else:
-        # Start the server in a separate thread
-        import threading
-        server_thread = threading.Thread(target=lambda: mcp.run(transport="stdio"))
-        server_thread.daemon = True
-        server_thread.start()
-        
-        # Wait a moment for the server to start
-        time.sleep(2)
-        
-        # Process documents after server is running
-        process_documents()
-        
-        # Keep the main thread alive
         try:
-            while True:
-                time.sleep(1)
+            # Process documents first
+            process_documents()
+            # Then run the server with stdio transport
+            mcp.run(transport="stdio")
         except KeyboardInterrupt:
             print("\nShutting down...")
+        except Exception as e:
+            print(f"Server error: {e}")

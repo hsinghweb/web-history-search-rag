@@ -1123,5 +1123,25 @@
     "doc": "Tesla_Motors_IP_Open_Innovation_and_the_Carbon_Crisis_-_Matthew_Rimmer.pdf",
     "chunk": "Dr Rimmer is the author of Digital Copyright and the Consumer Revolution: Hands off my iPod, Intellectual Property and Biotechnology: Biological Inventions, and Intellectual Property and Climate Change: Inventing Clean Technologies. He is an editor of Patent Law and Biological Inventions, Incentives for Global Public Health: Patent Law and Access to Essential Medicines, and Intellectual Property and Emerging Technologies: The New Biology. Rimmer has published widely on copyright law and information technology, patent law and biotechnology, access to medicines, clean technologies, and Indigenous intellectual property. His work is archived at SSRN Abstracts and Bepress Selected Works. 53",
     "chunk_id": "Tesla_Motors_IP_Open_Innovation_and_the_Carbon_Crisis_-_Matthew_Rimmer_57"
+  },
+  {
+    "doc": "ai.txt",
+    "chunk": "Artificial Intelligence (AI) is the field of study focused on creating intelligent machines that can perform tasks typically requiring human intelligence. These tasks include learning, problem-solving, perception, and decision-making. AI is now into Cricket as well!",
+    "chunk_id": "ai_0"
+  },
+  {
+    "doc": "cricket.txt",
+    "chunk": "Now even AI can predict whether Dhoni will play the 2027 IPL as well or not. but it can predict when would Rohit Sharma retire from playing cricet.",
+    "chunk_id": "cricket_0"
+  },
+  {
+    "doc": "philosophy.txt",
+    "chunk": "Philosophy, as one of the oldest and most profound branches of human inquiry, has ceaselessly posed questions about reality, existence, knowledge, values, reason, mind, and language.",
+    "chunk_id": "philosophy_0"
+  },
+  {
+    "doc": "science.txt",
+    "chunk": "Science, often considered a pinnacle of human achievement, is a systematic enterprise that builds and organizes knowledge in the form of testable explanations and predictions about the universe.",
+    "chunk_id": "science_0"
   }
 ]
