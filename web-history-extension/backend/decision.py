@@ -26,16 +26,19 @@ def generate_plan(perception: Dict[str, Any], memories: List[Dict[str, Any]], to
 
         # Format memories for prompt
         memories_prompt = "\n".join([
-            f"Memory {i+1}:\n{memory['text']}\n"
+            f"Memory {i+1}:\n{memory.get('content_snippet', '')}\n"
             for i, memory in enumerate(memories)
         ])
 
         # Build prompt
+        tool_hint = perception.get('tool_hint')
+        if not tool_hint:
+            tool_hint = ', '.join(perception.get('tool_hints', []))
         prompt = f"""
         Given the following context:
         
-        User Intent: {perception['intent']}
-        Tool Hint: {perception['tool_hint']}
+        User Intent: {perception.get('intent', '')}
+        Tool Hint: {tool_hint}
         
         Available Tools:
         {tools_prompt}
@@ -51,7 +54,7 @@ def generate_plan(perception: Dict[str, Any], memories: List[Dict[str, Any]], to
         """
 
         logger.debug("Sending request to Gemini API")
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
         logger.debug("Received response from Gemini API")
 

@@ -22,7 +22,7 @@ async def extract_perception(query: str) -> Dict[str, Any]:
         logger.info(f"Extracting perception from query: {query}")
         
         # Use Gemini API to analyze the query
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         prompt = f"""Analyze this query and extract:
         1. Primary intent (e.g., search, index, filter)
         2. Key entities (e.g., dates, urls, keywords)

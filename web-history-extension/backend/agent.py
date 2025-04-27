@@ -2,7 +2,7 @@ import asyncio
 import time
 import os
 import datetime
-from perception import extract_perception
+from perception import extract_perception, PerceptionResult
 from memory import MemoryManager, MemoryItem
 from decision import generate_plan
 from action import execute_tool
@@ -40,22 +40,38 @@ class Agent:
 
     async def process_query(self, request: AgentRequest) -> AgentResponse:
         try:
+            # Step 1: Perception (intent/entity/tool extraction)
+            user_query = request.search_query or (request.webpage.title if request.webpage else None)
+            if not user_query:
+                logger.warning("Invalid request: no webpage or search query provided")
+                return AgentResponse(error="Invalid request: must provide either webpage or search query")
+
+            logger.info(f"Calling perception module for query: {user_query}")
+            perception = await extract_perception(user_query)
+            logger.info(f"Perception result: {perception}")
+
+            # Step 2: If webpage, check for private domains before indexing
             if request.webpage:
-                # Handle webpage indexing
+                url = request.webpage.url.lower()
+                if any(domain in url for domain in ["mail.google.com", "gmail.com", "web.whatsapp.com", "whatsapp.com"]):
+                    logger.warning(f"Rejected private page for indexing: {url}")
+                    return AgentResponse(error="Cannot index private pages like Gmail or WhatsApp.")
+
                 logger.info(f"Processing webpage: {request.webpage.url}")
                 logger.debug(f"Webpage content length: {len(request.webpage.content)}")
-                
+
                 # Process webpage using MCP
                 logger.debug("Invoking process_webpage tool")
                 chunks = await process_webpage(request.webpage)
                 logger.info(f"Got {len(chunks)} chunks from webpage")
-                
+
                 # Get embeddings and store in memory
                 for i, chunk in enumerate(chunks):
                     logger.debug(f"Processing chunk {i+1}/{len(chunks)}")
+                    logger.info("Calling embedding model (Ollama or Gemini)")
                     embedding = await get_embedding(chunk)
                     logger.debug(f"Got embedding for chunk {i+1}")
-                    
+
                     self.memory.add_with_embedding(
                         chunk,
                         embedding,
@@ -66,33 +82,39 @@ class Agent:
                         }
                     )
                     logger.debug(f"Added chunk {i+1} to memory")
-                
+
                 logger.info("Successfully indexed webpage")
                 return AgentResponse()
-            
-            elif request.search_query:
-                # Handle search query
+
+            # Step 3: If search query, use perception, memory, decision, action
+            if request.search_query:
                 logger.info(f"Processing search query: {request.search_query}")
-                query = SearchQuery(query=request.search_query)
-                
-                # Get query embedding
-                logger.debug("Getting query embedding")
-                query_embedding = await get_embedding(query.query)
+                query = request.search_query
+
+                logger.info("Calling embedding model (Ollama or Gemini)")
+                query_embedding = await get_embedding(query)
                 logger.debug("Got query embedding")
-                
-                # Search memory
+
                 logger.debug("Searching memory with embedding")
                 results = self.memory.search_by_embedding(query_embedding)
                 logger.info(f"Found {len(results)} results")
-                
-                return AgentResponse(
-                    results=results,
-                    query=request.search_query
-                )
-            
-            else:
-                logger.warning("Invalid request: no webpage or search query provided")
-                return AgentResponse(error="Invalid request: must provide either webpage or search query")
+
+                # Decision step: generate plan
+                logger.info("Calling decision module (Gemini LLM)")
+                plan = generate_plan(perception, [r.__dict__ for r in results], {"search": {"description": "Search indexed content"}})  # Example, expand as needed
+                logger.info(f"Plan from decision module: {plan}")
+
+                # Action step: execute tool if needed
+                if plan.startswith("USE_TOOL:"):
+                    logger.info("Calling action module to execute tool")
+                    tool_result = await execute_tool(plan, {"search": {"description": "Search indexed content"}})  # Example, expand as needed
+                    logger.info(f"Tool execution result: {tool_result}")
+                    return AgentResponse(results=results, query=query)
+                else:
+                    return AgentResponse(results=results, query=query)
+
+            logger.warning("Invalid request: no webpage or search query provided")
+            return AgentResponse(error="Invalid request: must provide either webpage or search query")
 
         except Exception as e:
             logger.error(f"Error processing query: {e}", exc_info=True)
