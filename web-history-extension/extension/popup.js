@@ -164,36 +164,6 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Open page and highlight text
-function openPageAndHighlight(url, snippet) {
-  // Open the page in a new tab
-  chrome.tabs.create({ url }, tab => {
-    // Wait for the page to load
-    chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-      if (tabId === tab.id && changeInfo.status === 'complete') {
-        // Remove the listener
-        chrome.tabs.onUpdated.removeListener(listener);
-        
-        // Wait a bit for the page to fully render
-        setTimeout(() => {
-          // Send message to content script to highlight text
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'highlight',
-            text: getHighlightText(snippet)
-          });
-        }, 1000);
-      }
-    });
-  });
-}
-
-// Get text to highlight (extract most relevant part)
-function getHighlightText(snippet) {
-  // For simplicity, use the first 100 characters
-  // In a real implementation, you might want to use NLP to extract the most relevant sentence
-  return snippet.substring(0, 100);
-}
-
 // Show loading state
 function showLoading() {
   resultsContainer.innerHTML = `
@@ -225,41 +195,75 @@ async function indexCurrentPage() {
     // Show indexing status
     indexCurrentButton.textContent = 'Indexing...';
     indexCurrentButton.disabled = true;
+
+    // Inject content script only when needed
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    });
+
+    // Inject CSS for highlighting
+    await chrome.scripting.insertCSS({
+      target: { tabId: tab.id },
+      files: ['highlight.css']
+    });
     
     // Get page content
-    chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' }, async (response) => {
-      if (!response || !response.content) {
-        throw new Error('Failed to get page content');
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: () => {
+        // Get page title
+        const title = document.title;
+        
+        // Get text content
+        const bodyText = document.body.innerText;
+        
+        // Get meta description
+        const metaDescription = document.querySelector('meta[name="description"]')?.content || '';
+        
+        // Combine all text
+        const content = `${title}\n${metaDescription}\n${bodyText}`;
+        
+        return {
+          title,
+          content
+        };
       }
-      
-      // Send content to API
-      const apiResponse = await fetch(`${API_URL}/index`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          url: tab.url,
-          title: response.content.title,
-          content: response.content.content,
-          timestamp: new Date().toISOString()
-        })
-      });
-      
-      if (!apiResponse.ok) {
-        throw new Error(`Indexing failed: ${apiResponse.statusText}`);
-      }
-      
-      // Update button state
-      indexCurrentButton.textContent = 'Indexed!';
-      setTimeout(() => {
-        indexCurrentButton.textContent = 'Index Current Page';
-        indexCurrentButton.disabled = false;
-      }, 2000);
-      
-      // Refresh stats
-      await loadStats();
     });
+
+    if (!results || !results[0].result) {
+      throw new Error('Failed to get page content');
+    }
+
+    const contentData = results[0].result;
+    
+    // Send content to API
+    const apiResponse = await fetch(`${API_URL}/index`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: tab.url,
+        title: contentData.title,
+        content: contentData.content,
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    if (!apiResponse.ok) {
+      throw new Error(`Indexing failed: ${apiResponse.statusText}`);
+    }
+    
+    // Update button state
+    indexCurrentButton.textContent = 'Indexed!';
+    setTimeout(() => {
+      indexCurrentButton.textContent = 'Index Current Page';
+      indexCurrentButton.disabled = false;
+    }, 2000);
+    
+    // Refresh stats
+    await loadStats();
   } catch (error) {
     indexCurrentButton.textContent = 'Failed';
     setTimeout(() => {
@@ -273,4 +277,42 @@ async function indexCurrentPage() {
 // Open settings
 function openSettings() {
   chrome.runtime.openOptionsPage();
+}
+
+// Open page and highlight text
+async function openPageAndHighlight(url, snippet) {
+  try {
+    // Create new tab
+    const tab = await chrome.tabs.create({ url });
+    
+    // Wait for page to load
+    chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
+      if (tabId === tab.id && changeInfo.status === 'complete') {
+        // Remove the listener
+        chrome.tabs.onUpdated.removeListener(listener);
+        
+        // Inject content script and CSS
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        }).then(() => {
+          chrome.scripting.insertCSS({
+            target: { tabId: tab.id },
+            files: ['highlight.css']
+          }).then(() => {
+            // Wait a bit for the page to fully render
+            setTimeout(() => {
+              // Send highlight message
+              chrome.tabs.sendMessage(tab.id, {
+                action: 'highlight',
+                text: snippet.substring(0, 100)
+              });
+            }, 1000);
+          });
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error opening page:', error);
+  }
 }
