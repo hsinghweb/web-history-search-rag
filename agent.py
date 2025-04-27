@@ -69,7 +69,7 @@ async def main(user_input: str):
         
         server_params = StdioServerParameters(
             command="python",
-            args=["example3.py"],
+            args=["mcp-tools.py"],
             cwd=os.getcwd()
         )
 
