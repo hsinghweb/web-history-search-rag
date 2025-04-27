@@ -100,7 +100,7 @@ class Agent:
                 logger.info(f"Found {len(results)} results")
 
                 # Threshold: Only return results above a minimum score, otherwise say nothing found
-                MIN_SCORE = 0.45  # Example threshold, tune as needed
+                MIN_SCORE = 0.0025  # Example threshold, tune as needed
                 filtered_results = [r for r in results if getattr(r, 'score', 0) >= MIN_SCORE]
                 if not filtered_results:
                     logger.info("No sufficiently relevant results found in web history.")
