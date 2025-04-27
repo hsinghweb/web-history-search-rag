@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
-import google.generativeai as genai
+import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 from mcp import types
@@ -9,7 +9,6 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -42,19 +41,20 @@ logger.info("Initialized MCP server with name: WebHistoryTools")
 
 @mcp.tool()
 async def get_embedding(text: str) -> List[float]:
-    """Get embedding for text using Gemini API"""
+    """Get embedding for text using Ollama locally (e.g., 'nomic-embed-text')."""
     try:
-        logger.debug(f"Getting embedding for text of length {len(text)}")
-        model = "models/embedding-001"
-        result = genai.embed_content(
-            model=model,
-            content=text,
-            task_type="retrieval_document"
-        )
-        logger.debug("Successfully generated embedding")
-        return result["embedding"]
+        logger.debug(f"Getting embedding for text of length {len(text)} using Ollama")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:11434/api/embeddings",
+                json={"model": "nomic-embed-text", "prompt": text}
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.debug("Successfully generated embedding with Ollama")
+            return data["embedding"]
     except Exception as e:
-        logger.error(f"Error getting embedding: {e}")
+        logger.error(f"Error getting embedding from Ollama: {e}")
         raise
 
 @mcp.tool()

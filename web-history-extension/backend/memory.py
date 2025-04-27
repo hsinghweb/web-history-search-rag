@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import faiss
 import numpy as np
-import google.generativeai as genai
+import httpx
 import logging
 from tools import SearchResult
 
@@ -44,18 +44,19 @@ class MemoryManager:
         logger.info(f"Memory Manager initialized with {len(self.metadata)} items")
 
     def _get_embedding(self, text: str) -> np.ndarray:
-        """Get embedding using Gemini API"""
+        """Get embedding using Ollama API (nomic-embed-text)."""
         try:
-            logger.debug(f"Getting embedding for text: {text[:50]}...")
-            model = "models/embedding-001"
-            result = genai.embed_content(
-                model=model,
-                content=text,
-                task_type="retrieval_document"
+            logger.debug(f"Getting embedding for text: {text[:50]} using Ollama...")
+            response = httpx.post(
+                "http://localhost:11434/api/embeddings",
+                json={"model": "nomic-embed-text", "prompt": text}
             )
-            return np.array(result["embedding"], dtype=np.float32)
+            response.raise_for_status()
+            data = response.json()
+            logger.debug("Successfully generated embedding with Ollama")
+            return np.array(data["embedding"], dtype=np.float32)
         except Exception as e:
-            logger.error(f"Failed to get embedding: {e}")
+            logger.error(f"Failed to get embedding from Ollama: {e}")
             raise
 
     def _load_or_create_index(self):

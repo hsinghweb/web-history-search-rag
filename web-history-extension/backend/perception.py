@@ -32,9 +32,9 @@ async def extract_perception(query: str) -> Dict[str, Any]:
         
         Return as JSON."""
         
-        logger.debug("Sending query to Gemini API")
+        logger.debug("Sending query to Gemini LLM (perception step)")
         response = await model.generate_content_async(prompt)
-        logger.debug("Received response from Gemini API")
+        logger.debug("Received response from Gemini LLM (perception step)")
         
         # Parse the response
         perception = {
@@ -46,7 +46,7 @@ async def extract_perception(query: str) -> Dict[str, Any]:
         try:
             # Try to parse the response as JSON
             result = response.text
-            logger.debug(f"Raw Gemini response: {result}")
+            logger.debug(f"Raw Gemini LLM response: {result}")
             
             # TODO: Parse the response into perception dict
             # This is a placeholder - we'll implement proper parsing later
@@ -56,7 +56,7 @@ async def extract_perception(query: str) -> Dict[str, Any]:
             logger.error(f"Error parsing Gemini response: {parse_error}", exc_info=True)
             perception["error"] = str(parse_error)
         
-        logger.info(f"Extracted perception: {perception}")
+        logger.info(f"Extracted perception from Gemini LLM: {perception}")
         return perception
         
     except Exception as e:

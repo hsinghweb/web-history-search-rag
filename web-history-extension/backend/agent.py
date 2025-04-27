@@ -68,9 +68,9 @@ class Agent:
                 # Get embeddings and store in memory
                 for i, chunk in enumerate(chunks):
                     logger.debug(f"Processing chunk {i+1}/{len(chunks)}")
-                    logger.info("Calling embedding model (Ollama or Gemini)")
+                    logger.info("Calling embedding model (Ollama)")
                     embedding = await get_embedding(chunk)
-                    logger.debug(f"Got embedding for chunk {i+1}")
+                    logger.debug(f"Got embedding for chunk {i+1} from Ollama")
 
                     self.memory.add_with_embedding(
                         chunk,
@@ -83,7 +83,7 @@ class Agent:
                     )
                     logger.debug(f"Added chunk {i+1} to memory")
 
-                logger.info("Successfully indexed webpage")
+                logger.info("Successfully indexed webpage with Ollama embeddings")
                 return AgentResponse()
 
             # Step 3: If search query, use perception, memory, decision, action
@@ -91,9 +91,9 @@ class Agent:
                 logger.info(f"Processing search query: {request.search_query}")
                 query = request.search_query
 
-                logger.info("Calling embedding model (Ollama or Gemini)")
+                logger.info("Calling embedding model (Ollama)")
                 query_embedding = await get_embedding(query)
-                logger.debug("Got query embedding")
+                logger.debug("Got query embedding from Ollama")
 
                 logger.debug("Searching memory with embedding")
                 results = self.memory.search_by_embedding(query_embedding)

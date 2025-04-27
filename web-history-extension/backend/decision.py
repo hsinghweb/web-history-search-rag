@@ -53,14 +53,14 @@ def generate_plan(perception: Dict[str, Any], memories: List[Dict[str, Any]], to
         Your response:
         """
 
-        logger.debug("Sending request to Gemini API")
+        logger.debug("Sending request to Gemini LLM (decision step)")
         model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
-        logger.debug("Received response from Gemini API")
+        logger.debug("Received response from Gemini LLM (decision step)")
 
         plan = response.text.strip()
-        logger.debug(f"Raw Gemini response: {plan}")
-        logger.info(f"Generated plan: {plan}")
+        logger.debug(f"Raw Gemini LLM response: {plan}")
+        logger.info(f"Generated plan from Gemini LLM: {plan}")
         return plan
 
     except Exception as e:
