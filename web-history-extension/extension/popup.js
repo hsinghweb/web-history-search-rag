@@ -137,7 +137,7 @@ function displayResults(data) {
     
     // Add click event to open the page and highlight text
     resultItem.addEventListener('click', () => {
-      openPageAndHighlight(result.url, result.content_snippet, data.query);
+      openPageAndHighlight(result.url, result.content_snippet, data.query, result.chunk_id);
     });
     
     resultsContainer.appendChild(resultItem);
@@ -280,7 +280,7 @@ function openSettings() {
 }
 
 // Open page and highlight text with robust retry
-async function openPageAndHighlight(url, chunkText, searchQuery) {
+async function openPageAndHighlight(url, chunkText, searchQuery, chunkId) {
   try {
     const tab = await chrome.tabs.create({ url });
     // Wait for page to load
@@ -302,7 +302,8 @@ async function openPageAndHighlight(url, chunkText, searchQuery) {
               chrome.tabs.sendMessage(tab.id, {
                 action: 'highlight-chunk',
                 chunkText: chunkText,
-                searchText: searchQuery
+                searchText: searchQuery,
+                chunkId: chunkId
               }, (response) => {
                 if (!response && tries < 5) {
                   tries++;
