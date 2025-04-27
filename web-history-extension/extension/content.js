@@ -4,7 +4,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     highlightText(request.searchText, request.matchText, request.chunkId);
     sendResponse({ success: true });
   } else if (request.action === 'highlight-chunk') {
+    // Highlight the chunk for context
     highlightChunk(request.chunkText, request.searchText);
+    // Highlight the query text everywhere
+    highlightQueryTextEverywhere(request.searchText);
     sendResponse({ success: true });
   } else if (request.action === 'clearHighlights') {
     clearHighlights();
@@ -121,18 +124,29 @@ function calculateMatchScore(text, targetText) {
   return matchCount / targetWords.length;
 }
 
-// Highlight the chunk and search terms inside it. Fallback to search term highlight if chunk not found.
+function normalizeText(text) {
+  return text.replace(/\s+/g, ' ').replace(/[\r\n]+/g, ' ').trim();
+}
+
+function fuzzyIncludes(source, target) {
+  // Returns true if at least 80% of target is found in source (normalized, case-insensitive)
+  const normSource = normalizeText(source).toLowerCase();
+  const normTarget = normalizeText(target).toLowerCase();
+  if (normTarget.length < 10) return false;
+  return normSource.includes(normTarget.slice(0, Math.max(20, Math.floor(normTarget.length * 0.8))));
+}
+
 function highlightChunk(chunkText, searchText) {
   clearHighlights();
   if (!chunkText || chunkText.length < 3) return;
-  // Find all text nodes
   const textNodes = findTextNodes(document.body);
   let found = false;
+  const normChunk = normalizeText(chunkText);
   for (const node of textNodes) {
-    const idx = node.nodeValue.indexOf(chunkText.slice(0, 30)); // Try to match the start of the chunk
-    if (idx !== -1) {
+    const nodeNorm = normalizeText(node.nodeValue);
+    if (fuzzyIncludes(nodeNorm, normChunk)) {
       // Replace chunk in node with highlight
-      const regex = new RegExp(escapeRegExp(chunkText), 'gi');
+      const regex = new RegExp(escapeRegExp(chunkText.slice(0, 40)), 'i');
       const highlightedHTML = node.nodeValue.replace(regex, match => `<mark class="web-history-chunk-highlight">${match}</mark>`);
       const temp = document.createElement('span');
       temp.innerHTML = highlightedHTML;
@@ -157,6 +171,28 @@ function highlightTermsInChunk(chunkElem, searchText) {
   for (const word of words) {
     const regex = new RegExp(escapeRegExp(word), 'gi');
     chunkElem.innerHTML = chunkElem.innerHTML.replace(regex, m => `<mark class="web-history-term-highlight">${m}</mark>`);
+  }
+}
+
+function highlightQueryTextEverywhere(queryText) {
+  if (!queryText || queryText.length < 2) return;
+  clearHighlights();
+  const textNodes = findTextNodes(document.body);
+  let firstMark = null;
+  for (const node of textNodes) {
+    const regex = new RegExp(escapeRegExp(queryText), 'gi');
+    if (regex.test(node.nodeValue)) {
+      const highlightedHTML = node.nodeValue.replace(regex, match => `<mark class="web-history-query-highlight">${match}</mark>`);
+      const temp = document.createElement('span');
+      temp.innerHTML = highlightedHTML;
+      node.parentNode.replaceChild(temp, node);
+      if (!firstMark) {
+        firstMark = temp.querySelector('mark.web-history-query-highlight');
+      }
+    }
+  }
+  if (firstMark) {
+    firstMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 

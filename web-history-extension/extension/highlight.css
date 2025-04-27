@@ -30,6 +30,7 @@
   padding: 2px 4px;
   font-weight: bold;
   box-shadow: 0 0 8px #fbc02d88;
+  animation: pulse 2s;
 }
 
 .web-history-chunk-highlight.highlight-pulse {
@@ -40,6 +41,15 @@
   background: #fff176;
   border-bottom: 2px dashed #ffd54f;
   padding: 0 2px;
+}
+
+.web-history-query-highlight {
+  background: #82b1ff;
+  color: #0d47a1;
+  border-radius: 2px;
+  padding: 1px 3px;
+  font-weight: bold;
+  box-shadow: 0 0 4px #82b1ff88;
 }
 
 @keyframes pulse {

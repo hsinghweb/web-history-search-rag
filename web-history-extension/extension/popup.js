@@ -279,12 +279,10 @@ function openSettings() {
   chrome.runtime.openOptionsPage();
 }
 
-// Open page and highlight text
+// Open page and highlight text with robust retry
 async function openPageAndHighlight(url, chunkText, searchQuery) {
   try {
-    // Create new tab
     const tab = await chrome.tabs.create({ url });
-    
     // Wait for page to load
     chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
       if (tabId === tab.id && changeInfo.status === 'complete') {
@@ -298,13 +296,21 @@ async function openPageAndHighlight(url, chunkText, searchQuery) {
             target: { tabId: tab.id },
             files: ['highlight.css']
           }).then(() => {
-            setTimeout(() => {
+            // Retry sending the message until acknowledged
+            let tries = 0;
+            function trySend() {
               chrome.tabs.sendMessage(tab.id, {
                 action: 'highlight-chunk',
                 chunkText: chunkText,
                 searchText: searchQuery
+              }, (response) => {
+                if (!response && tries < 5) {
+                  tries++;
+                  setTimeout(trySend, 500);
+                }
               });
-            }, 1000);
+            }
+            setTimeout(trySend, 1000); // Initial delay
           });
         });
       }
