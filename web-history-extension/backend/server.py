@@ -3,6 +3,7 @@ import json
 import numpy as np
 import faiss
 import requests
+import logging
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,6 +12,17 @@ from pathlib import Path
 from datetime import datetime
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('web_history_search.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -83,15 +95,17 @@ class SearchResponse(BaseModel):
 
 def get_embedding(text: str) -> np.ndarray:
     """Get embedding from Nomic via Ollama API"""
+    logger.debug(f"Getting embedding for text of length {len(text)}")
     try:
         response = requests.post(
             EMBED_URL,
             json={"model": EMBED_MODEL, "prompt": text}
         )
         response.raise_for_status()
+        logger.debug("Successfully got embedding from Ollama API")
         return np.array(response.json()["embedding"], dtype=np.float32)
     except Exception as e:
-        print(f"Error getting embedding: {e}")
+        logger.warning(f"Failed to get embedding from Ollama, falling back to Gemini: {e}")
         # Fallback to Gemini embeddings if Ollama is not available
         model = "models/embedding-001"
         result = genai.embed_content(
@@ -99,6 +113,7 @@ def get_embedding(text: str) -> np.ndarray:
             content=text,
             task_type="retrieval_document"
         )
+        logger.debug("Successfully got embedding from Gemini API")
         return np.array(result["embedding"], dtype=np.float32)
 
 def chunk_text(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
@@ -109,20 +124,26 @@ def chunk_text(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
 
 def save_index():
     """Save FAISS index and metadata to disk"""
+    logger.info("Saving index and metadata to disk")
     global INDEX, METADATA
     if INDEX and INDEX.ntotal > 0:
         faiss.write_index(INDEX, str(INDEX_FILE))
         METADATA_FILE.write_text(json.dumps(METADATA))
         CACHE_FILE.write_text(json.dumps(URL_CACHE))
+        logger.info(f"Successfully saved index with {INDEX.ntotal} vectors")
+    else:
+        logger.warning("No index to save or index is empty")
 
 @app.post("/index", status_code=201)
 async def index_webpage(webpage: WebPage):
     """Index a webpage in FAISS"""
+    logger.info(f"Indexing webpage: {webpage.url}")
     global INDEX, METADATA
     
     # Skip if URL is already indexed and hasn't changed
     url_hash = webpage.url
     if url_hash in URL_CACHE:
+        logger.debug(f"URL already indexed: {url_hash}")
         return {"status": "skipped", "message": "URL already indexed"}
     
     # Set timestamp
@@ -130,14 +151,17 @@ async def index_webpage(webpage: WebPage):
         webpage.timestamp = datetime.now().isoformat()
     
     # Process content into chunks
+    logger.debug(f"Chunking content of length {len(webpage.content)}")
     chunks = list(chunk_text(webpage.content))
     if not chunks:
+        logger.error("No content chunks generated for indexing")
         raise HTTPException(status_code=400, detail="No content to index")
     
     # Get embeddings for each chunk
     embeddings = []
     new_metadata = []
     
+    logger.debug(f"Processing {len(chunks)} chunks")
     for i, chunk in enumerate(chunks):
         embedding = get_embedding(chunk)
         embeddings.append(embedding)
@@ -151,10 +175,12 @@ async def index_webpage(webpage: WebPage):
     
     # Initialize or update FAISS index
     if not embeddings:
+        logger.error("Failed to generate any embeddings")
         raise HTTPException(status_code=400, detail="Failed to generate embeddings")
     
     if INDEX is None:
         dim = len(embeddings[0])
+        logger.info(f"Initializing new FAISS index with dimension {dim}")
         INDEX = faiss.IndexFlatL2(dim)
     
     # Add embeddings to index
@@ -167,26 +193,31 @@ async def index_webpage(webpage: WebPage):
     # Save to disk
     save_index()
     
+    logger.info(f"Successfully indexed {len(chunks)} chunks for {webpage.url}")
     return {"status": "success", "chunks_indexed": len(chunks)}
 
 @app.post("/search", response_model=SearchResponse)
 async def search(search_query: SearchQuery):
     """Search for webpages matching the query"""
+    logger.info(f"Processing search query: {search_query.query}")
     global INDEX, METADATA
     
     if INDEX is None or INDEX.ntotal == 0:
+        logger.error("No index available for search")
         raise HTTPException(status_code=404, detail="No index available")
     
     # Get embedding for query
     query_vec = get_embedding(search_query.query).reshape(1, -1)
     
     # Search FAISS index
+    logger.debug(f"Searching FAISS index for top {search_query.top_k} results")
     D, I = INDEX.search(query_vec, search_query.top_k)
     
     # Format results
     results = []
     for i, idx in enumerate(I[0]):
         if idx >= len(METADATA):
+            logger.warning(f"Index {idx} out of range for metadata")
             continue
             
         data = METADATA[idx]
@@ -198,20 +229,25 @@ async def search(search_query: SearchQuery):
             chunk_id=data["chunk_id"]
         ))
     
+    logger.info(f"Found {len(results)} results for query: {search_query.query}")
     return SearchResponse(results=results, query=search_query.query)
 
 @app.get("/stats")
 async def get_stats():
     """Get index statistics"""
-    return {
+    logger.debug("Retrieving index statistics")
+    stats = {
         "indexed_urls": len(URL_CACHE),
         "total_chunks": len(METADATA),
         "index_size": os.path.getsize(INDEX_FILE) if INDEX_FILE.exists() else 0
     }
+    logger.info(f"Index stats: {stats}")
+    return stats
 
 @app.delete("/clear")
 async def clear_index():
     """Clear the entire index"""
+    logger.warning("Clearing entire index")
     global INDEX, METADATA, URL_CACHE
     
     if INDEX is not None:
@@ -223,10 +259,12 @@ async def clear_index():
     # Remove files
     if INDEX_FILE.exists():
         os.remove(INDEX_FILE)
+        logger.info("Removed index file")
     
     METADATA_FILE.write_text(json.dumps([]))
     CACHE_FILE.write_text(json.dumps({}))
     
+    logger.info("Index cleared successfully")
     return {"status": "success", "message": "Index cleared"}
 
 if __name__ == "__main__":
