@@ -114,36 +114,63 @@ async function indexWebpage(url, title, content) {
   }
 }
 
-// Listen for tab updates
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Only process when the page is fully loaded
-  if (changeInfo.status === 'complete' && tab.url) {
-    // Skip excluded domains
-    if (shouldExcludeUrl(tab.url)) {
-      console.log('Skipping excluded URL:', tab.url);
-      return;
-    }
-    
-    console.log('Processing page:', tab.url);
-    
-    // Extract content
-    const contentData = await extractPageContent(tabId);
-    if (!contentData) {
-      console.log('No content extracted, skipping indexing');
-      return;
-    }
-    
-    // Index the webpage
-    await indexWebpage(tab.url, contentData.title, contentData.content);
-  }
-});
-
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'search') {
     searchWebpages(request.query)
       .then(results => sendResponse({ success: true, results }))
       .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Required for async sendResponse
+  } else if (request.action === 'getPageContent') {
+    // Handle request to get page content for manual indexing
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (!tabs || !tabs[0] || !tabs[0].id) {
+        sendResponse({ error: 'No active tab found' });
+        return;
+      }
+      
+      const tab = tabs[0];
+      
+      // Skip excluded domains
+      if (shouldExcludeUrl(tab.url)) {
+        sendResponse({ error: 'URL is excluded from indexing' });
+        return;
+      }
+      
+      const contentData = await extractPageContent(tab.id);
+      if (!contentData) {
+        sendResponse({ error: 'Failed to extract content' });
+        return;
+      }
+      
+      sendResponse({ content: contentData });
+    });
+    return true; // Required for async sendResponse
+  } else if (request.action === 'indexPage') {
+    // Handle request to index page
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (!tabs || !tabs[0] || !tabs[0].id) {
+        sendResponse({ error: 'No active tab found' });
+        return;
+      }
+      
+      const tab = tabs[0];
+      
+      // Skip excluded domains
+      if (shouldExcludeUrl(tab.url)) {
+        sendResponse({ error: 'URL is excluded from indexing' });
+        return;
+      }
+      
+      const contentData = await extractPageContent(tab.id);
+      if (!contentData) {
+        sendResponse({ error: 'Failed to extract content' });
+        return;
+      }
+      
+      await indexWebpage(tab.url, contentData.title, contentData.content);
+      sendResponse({ success: true });
+    });
     return true; // Required for async sendResponse
   }
 });
