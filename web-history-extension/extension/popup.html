@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web History Search</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Web History Search</h1>
+    
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="Search your browsing history...">
+      <button id="search-button">Search</button>
+    </div>
+    
+    <div class="status-container">
+      <div class="status">
+        <span id="status-text">Checking API status...</span>
+        <span id="status-indicator" class="indicator"></span>
+      </div>
+      <div class="stats">
+        <span id="indexed-count">0</span> pages indexed
+      </div>
+    </div>
+    
+    <div id="results-container" class="results-container">
+      <div class="no-results">Enter a search query to find relevant pages</div>
+    </div>
+    
+    <div class="footer">
+      <button id="index-current-button">Index Current Page</button>
+      <button id="settings-button">Settings</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
