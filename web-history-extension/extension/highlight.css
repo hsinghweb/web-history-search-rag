@@ -1,9 +1,18 @@
 .web-history-highlight {
-  background-color: #ffeb3b;
-  font-weight: bold;
   padding: 2px 4px;
   border-radius: 2px;
   transition: background-color 0.3s ease;
+}
+
+.web-history-highlight.match-highlight {
+  background-color: #ffeb3b;
+  font-weight: bold;
+  border-bottom: 2px solid #fbc02d;
+}
+
+.web-history-highlight.search-highlight {
+  background-color: #fff176;
+  border-bottom: 1px solid #ffd54f;
 }
 
 .web-history-highlight:hover {

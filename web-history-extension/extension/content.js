@@ -1,7 +1,7 @@
 // Listen for messages from the popup or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'highlight') {
-    highlightText(request.text, request.chunkId);
+    highlightText(request.searchText, request.matchText, request.chunkId);
     sendResponse({ success: true });
   } else if (request.action === 'clearHighlights') {
     clearHighlights();
@@ -34,60 +34,66 @@ function extractPageContent() {
 }
 
 // Highlight text on the page
-function highlightText(textToHighlight, chunkId) {
+function highlightText(searchText, matchText, chunkId) {
   // First clear any existing highlights
   clearHighlights();
   
-  if (!textToHighlight || textToHighlight.length < 3) {
-    return;
-  }
-  
-  // Create a regex to find the text (case insensitive)
-  const regex = new RegExp(escapeRegExp(textToHighlight), 'gi');
+  // Create a regex pattern that matches both search text and match text
+  const searchPattern = new RegExp(escapeRegExp(searchText), 'gi');
+  const matchPattern = new RegExp(escapeRegExp(matchText), 'gi');
   
   // Find all text nodes in the document
   const textNodes = findTextNodes(document.body);
   
-  // For each text node, check if it contains the text to highlight
-  let foundMatch = false;
+  // Track the best match for scrolling
   let bestMatch = null;
   let bestMatchScore = 0;
   
+  // First try to highlight the exact match text
   textNodes.forEach(node => {
     const originalText = node.nodeValue;
-    if (regex.test(originalText)) {
-      foundMatch = true;
-      
-      // Replace the text with highlighted version
-      const highlightedText = originalText.replace(regex, match => {
-        return `<mark class="web-history-highlight" data-chunk-id="${chunkId}">${match}</mark>`;
+    if (matchPattern.test(originalText)) {
+      const highlightedText = originalText.replace(matchPattern, match => {
+        return `<mark class="web-history-highlight match-highlight" data-chunk-id="${chunkId}">${match}</mark>`;
       });
       
-      // Create a temporary element to hold the HTML
       const tempElement = document.createElement('span');
       tempElement.innerHTML = highlightedText;
+      node.parentNode.replaceChild(tempElement, node);
       
-      // Replace the original node with the new nodes
-      const parent = node.parentNode;
-      parent.replaceChild(tempElement, node);
-
-      // Calculate match score (how much of the chunk text is found in this node)
-      const matchScore = calculateMatchScore(originalText, textToHighlight);
-      if (matchScore > bestMatchScore) {
-        bestMatchScore = matchScore;
-        bestMatch = tempElement.querySelector('.web-history-highlight');
+      const highlight = tempElement.querySelector('.match-highlight');
+      if (highlight) {
+        const matchScore = calculateMatchScore(originalText, matchText);
+        if (matchScore > bestMatchScore) {
+          bestMatchScore = matchScore;
+          bestMatch = highlight;
+        }
       }
     }
   });
+  
+  // Then highlight search terms in a different color
+  textNodes.forEach(node => {
+    const originalText = node.nodeValue;
+    if (searchPattern.test(originalText)) {
+      const highlightedText = originalText.replace(searchPattern, match => {
+        return `<mark class="web-history-highlight search-highlight">${match}</mark>`;
+      });
+      
+      const tempElement = document.createElement('span');
+      tempElement.innerHTML = highlightedText;
+      node.parentNode.replaceChild(tempElement, node);
+    }
+  });
 
-  // Scroll to the best match
+  // Scroll to the best match if found
   if (bestMatch) {
     bestMatch.scrollIntoView({
       behavior: 'smooth',
       block: 'center'
     });
     
-    // Add pulsing animation to the best match
+    // Add pulsing animation
     bestMatch.classList.add('highlight-pulse');
     
     // Remove pulsing after animation completes
@@ -95,29 +101,21 @@ function highlightText(textToHighlight, chunkId) {
       bestMatch.classList.remove('highlight-pulse');
     }, 2000);
   }
-  
-  return foundMatch;
 }
 
-// Calculate how well a text matches the chunk
-function calculateMatchScore(text, chunk) {
-  // Convert both to lowercase for comparison
-  text = text.toLowerCase();
-  chunk = chunk.toLowerCase();
-  
-  // Count how many words from the chunk appear in the text
-  const chunkWords = chunk.split(/\s+/);
-  const textWords = text.split(/\s+/);
+// Calculate match score between text and search/match text
+function calculateMatchScore(text, targetText) {
+  const textWords = text.toLowerCase().split(/\s+/);
+  const targetWords = targetText.toLowerCase().split(/\s+/);
   
   let matchCount = 0;
-  chunkWords.forEach(word => {
+  targetWords.forEach(word => {
     if (textWords.includes(word)) {
       matchCount++;
     }
   });
   
-  // Return percentage of matching words
-  return matchCount / chunkWords.length;
+  return matchCount / targetWords.length;
 }
 
 // Clear all highlights
@@ -127,7 +125,7 @@ function clearHighlights() {
     const parent = highlight.parentNode;
     const textNode = document.createTextNode(highlight.textContent);
     parent.replaceChild(textNode, highlight);
-    parent.normalize(); // Merge adjacent text nodes
+    parent.normalize();
   });
 }
 

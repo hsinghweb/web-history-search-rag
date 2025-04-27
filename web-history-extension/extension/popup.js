@@ -128,7 +128,6 @@ function displayResults(data) {
     resultItem.className = 'result-item';
     resultItem.dataset.url = result.url;
     resultItem.dataset.snippet = result.content_snippet;
-    resultItem.dataset.chunkId = result.chunk_id;
     
     resultItem.innerHTML = `
       <div class="result-title">${result.title}</div>
@@ -138,7 +137,7 @@ function displayResults(data) {
     
     // Add click event to open the page and highlight text
     resultItem.addEventListener('click', () => {
-      openPageAndHighlight(result.url, result.content_snippet, result.chunk_id);
+      openPageAndHighlight(result.url, result.content_snippet, data.query);
     });
     
     resultsContainer.appendChild(resultItem);
@@ -281,7 +280,7 @@ function openSettings() {
 }
 
 // Open page and highlight text
-async function openPageAndHighlight(url, snippet, chunkId) {
+async function openPageAndHighlight(url, snippet, searchQuery) {
   try {
     // Create new tab
     const tab = await chrome.tabs.create({ url });
@@ -303,11 +302,11 @@ async function openPageAndHighlight(url, snippet, chunkId) {
           }).then(() => {
             // Wait a bit for the page to fully render
             setTimeout(() => {
-              // Send highlight message with chunk ID
+              // Send highlight message with both search query and match text
               chrome.tabs.sendMessage(tab.id, {
                 action: 'highlight',
-                text: snippet,
-                chunkId: chunkId
+                searchText: searchQuery,
+                matchText: snippet
               });
             }, 1000);
           });

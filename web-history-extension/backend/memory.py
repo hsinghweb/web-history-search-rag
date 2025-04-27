@@ -108,10 +108,9 @@ class MemoryManager:
     def add_with_embedding(self, text: str, embedding: np.ndarray, metadata: Dict[str, Any]):
         """Add a new item with pre-computed embedding"""
         try:
-            # Check if URL is already indexed
-            url = metadata.get("url")
-            if url and url in self.url_cache:
-                logger.info(f"URL already indexed: {url}")
+            # Check for duplicate chunk text (optional, prevents exact duplicates)
+            if any(item["text"] == text for item in self.metadata):
+                logger.info("Chunk already indexed (duplicate text). Skipping.")
                 return
             
             # Add to index
@@ -125,7 +124,8 @@ class MemoryManager:
             metadata["index"] = len(self.metadata)
             self.metadata.append(metadata)
             
-            # Update URL cache
+            # Update URL cache (for stats only)
+            url = metadata.get("url")
             if url:
                 self.url_cache[url] = datetime.now().isoformat()
                 logger.debug(f"Added URL to cache: {url}")
@@ -181,21 +181,23 @@ class MemoryManager:
             
             # Convert to SearchResults
             results = []
+            seen_texts = set()
             for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
-                if idx < len(self.metadata):  # Ensure valid index
+                if idx < len(self.metadata):
                     item = self.metadata[idx]
+                    text = item["text"]
+                    if text in seen_texts:
+                        continue  # Skip duplicate text
+                    seen_texts.add(text)
                     result = SearchResult(
                         url=item.get("url", ""),
                         title=item.get("title", ""),
-                        content_snippet=item["text"][:200] + "...",
-                        score=float(1.0 / (1.0 + dist)),  # Convert distance to similarity score
+                        content_snippet=text[:200] + "...",
+                        score=float(1.0 / (1.0 + dist)),
                         chunk_id=str(idx)
                     )
                     results.append(result)
-            
-            logger.info(f"Found {len(results)} results")
             return results
-            
         except Exception as e:
             logger.error(f"Error searching memory: {e}", exc_info=True)
             return []
