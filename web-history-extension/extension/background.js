@@ -27,13 +27,6 @@ function shouldExcludeUrl(url) {
 // Extract text content from a webpage
 async function extractPageContent(tabId) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (!tab || tab.id !== tabId) {
-      console.log('Tab not found or not active');
-      return null;
-    }
-    
     // Execute content script to extract text
     const results = await chrome.scripting.executeScript({
       target: { tabId },
@@ -116,12 +109,7 @@ async function indexWebpage(url, title, content) {
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'search') {
-    searchWebpages(request.query)
-      .then(results => sendResponse({ success: true, results }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true; // Required for async sendResponse
-  } else if (request.action === 'getPageContent') {
+  if (request.action === 'getPageContent') {
     // Handle request to get page content for manual indexing
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (!tabs || !tabs[0] || !tabs[0].id) {
@@ -174,78 +162,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Required for async sendResponse
   }
 });
-
-// Search for webpages
-async function searchWebpages(query) {
-  try {
-    const response = await fetch(`${API_URL}/search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        query,
-        top_k: 5
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Search failed: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error searching webpages:', error);
-    throw error;
-  }
-}
-
-// Get API stats
-async function getApiStats() {
-  try {
-    const response = await fetch(`${API_URL}/stats`);
-    if (!response.ok) {
-      throw new Error(`Failed to get stats: ${response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error getting API stats:', error);
-    return null;
-  }
-}
-
-// Check if API is available
-async function checkApiAvailability() {
-  try {
-    const stats = await getApiStats();
-    return !!stats;
-  } catch (error) {
-    console.error('API not available:', error);
-    return false;
-  }
-}
-
-// Initialize extension
-async function initialize() {
-  // Check if API is available
-  const apiAvailable = await checkApiAvailability();
-  
-  if (apiAvailable) {
-    console.log('API is available');
-    chrome.action.setBadgeText({ text: 'ON' });
-    chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
-    
-    // Clear badge after 3 seconds
-    setTimeout(() => {
-      chrome.action.setBadgeText({ text: '' });
-    }, 3000);
-  } else {
-    console.error('API is not available');
-    chrome.action.setBadgeText({ text: 'OFF' });
-    chrome.action.setBadgeBackgroundColor({ color: '#F44336' });
-  }
-}
-
-// Run initialization
-initialize();
