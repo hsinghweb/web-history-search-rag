@@ -20,4 +20,5 @@ dependencies = [
     "markitdown[all]>=0.1.1",
     "mcp[cli]>=1.6.0",
     "fastapi>=0.115.12",
+    "fastapi-mcp>=0.3.3",
 ]
