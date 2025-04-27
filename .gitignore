@@ -11,3 +11,22 @@ wheels/
 
 # Virtual environments
 .venv
+
+# FAISS index files
+faiss_index/
+**/faiss_index/
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Environment variables
+.env
+
+# Virtual environments
+.venv
+
+# Chrome extension
+faiss_index/
