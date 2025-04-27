@@ -5,7 +5,7 @@ This Chrome extension lets you index and semantically search your web browsing h
 ## Features
 
 - **Manual Indexing:** Only indexes a web page when you click the "Index Current Page" button in the extension popup. No automatic or background indexing.
-- **Semantic Search:** Uses Gemini embeddings and FAISS vector store for fast, relevant search.
+- **Semantic Search:** Uses Ollama (nomic-embed-text) embeddings and FAISS vector store for fast, relevant search. All embedding is performed locally via Ollama—no cloud API calls.
 - **Precise Highlighting:** When you click a search result, the extension opens the page, scrolls to the most relevant section, and highlights both the matching chunk and your search terms.
 - **Privacy First:** No background monitoring. Only pages you explicitly choose are indexed. Excludes sensitive domains (e.g., Gmail, WhatsApp, Drive).
 - **FastAPI Backend:** Handles embedding, indexing, and search. Runs locally for full control.
@@ -14,8 +14,22 @@ This Chrome extension lets you index and semantically search your web browsing h
 
 - **Frontend:** Chrome Extension (HTML, CSS, JavaScript)
 - **Backend:** Python FastAPI
-- **Embeddings:** Gemini API
+- **Embeddings:** Ollama (nomic-embed-text) local model
 - **Vector Store:** FAISS
+
+## Architecture (Backend)
+
+- **Agent-based design**: Follows a perception-decision-action loop for robust, extensible processing.
+- **Ollama for Embeddings**: All text embeddings (for both indexing and search) are generated using the local Ollama server (model: nomic-embed-text).
+- **No Gemini dependency**: All references and logging now reflect Ollama usage.
+- **Action Layer**: The agent never calls tools directly; instead, all tool calls are routed through an action layer (action.py), which wraps MCP tools (tools.py).
+- **Privacy**: Gmail, WhatsApp, and other sensitive domains are explicitly excluded from indexing.
+
+## Requirements
+
+- Python 3.9+
+- [Ollama](https://ollama.com/) running locally (ensure the nomic-embed-text model is pulled)
+- Chrome (for extension)
 
 ## Installation
 
@@ -26,11 +40,9 @@ This Chrome extension lets you index and semantically search your web browsing h
    ```bash
    pip install -r requirements.txt
    ```
-3. Set your Gemini API key in a `.env` file:
-   ```env
-   GEMINI_API_KEY=your-key-here
-   ```
-4. Start the backend server:
+3. Start Ollama locally: `ollama serve`
+4. Pull the embedding model: `ollama pull nomic-embed-text`
+5. Start the backend server:
    ```bash
    uvicorn server:app --reload
    ```
