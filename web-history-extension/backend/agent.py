@@ -99,9 +99,16 @@ class Agent:
                 results = self.memory.search_by_embedding(query_embedding)
                 logger.info(f"Found {len(results)} results")
 
+                # Threshold: Only return results above a minimum score, otherwise say nothing found
+                MIN_SCORE = 0.45  # Example threshold, tune as needed
+                filtered_results = [r for r in results if getattr(r, 'score', 0) >= MIN_SCORE]
+                if not filtered_results:
+                    logger.info("No sufficiently relevant results found in web history.")
+                    return AgentResponse(results=[], query=query, error="Nothing found in the web history.")
+
                 # Decision step: generate plan
                 logger.info("Calling decision module (Gemini LLM)")
-                plan = generate_plan(perception, [r.__dict__ for r in results], {"search": {"description": "Search indexed content"}})  # Example, expand as needed
+                plan = generate_plan(perception, [r.__dict__ for r in filtered_results], {"search": {"description": "Search indexed content"}})  # Example, expand as needed
                 logger.info(f"Plan from decision module: {plan}")
 
                 # Action step: execute tool if needed
@@ -109,9 +116,9 @@ class Agent:
                     logger.info("Calling action module to execute tool")
                     tool_result = await execute_tool(plan, {"search": {"description": "Search indexed content"}})  # Example, expand as needed
                     logger.info(f"Tool execution result: {tool_result}")
-                    return AgentResponse(results=results, query=query)
+                    return AgentResponse(results=filtered_results, query=query)
                 else:
-                    return AgentResponse(results=results, query=query)
+                    return AgentResponse(results=filtered_results, query=query)
 
             logger.warning("Invalid request: no webpage or search query provided")
             return AgentResponse(error="Invalid request: must provide either webpage or search query")
