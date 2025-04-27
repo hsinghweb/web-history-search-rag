@@ -196,6 +196,9 @@ class MemoryManager:
                         score=float(1.0 / (1.0 + dist)),
                         chunk_id=str(idx)
                     )
+                    logger.info(
+                        f"Matched chunk #{i}: idx={idx}, score={result.score:.4f}, dist={dist:.4f}, url={result.url}, title={result.title}, text={text[:100].replace(chr(10), ' ')}..."
+                    )
                     results.append(result)
             return results
         except Exception as e:
