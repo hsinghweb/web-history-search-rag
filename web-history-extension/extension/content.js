@@ -3,6 +3,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'highlight') {
     highlightText(request.searchText, request.matchText, request.chunkId);
     sendResponse({ success: true });
+  } else if (request.action === 'highlight-chunk') {
+    highlightChunk(request.chunkText, request.searchText);
+    sendResponse({ success: true });
   } else if (request.action === 'clearHighlights') {
     clearHighlights();
     sendResponse({ success: true });
@@ -116,6 +119,45 @@ function calculateMatchScore(text, targetText) {
   });
   
   return matchCount / targetWords.length;
+}
+
+// Highlight the chunk and search terms inside it. Fallback to search term highlight if chunk not found.
+function highlightChunk(chunkText, searchText) {
+  clearHighlights();
+  if (!chunkText || chunkText.length < 3) return;
+  // Find all text nodes
+  const textNodes = findTextNodes(document.body);
+  let found = false;
+  for (const node of textNodes) {
+    const idx = node.nodeValue.indexOf(chunkText.slice(0, 30)); // Try to match the start of the chunk
+    if (idx !== -1) {
+      // Replace chunk in node with highlight
+      const regex = new RegExp(escapeRegExp(chunkText), 'gi');
+      const highlightedHTML = node.nodeValue.replace(regex, match => `<mark class="web-history-chunk-highlight">${match}</mark>`);
+      const temp = document.createElement('span');
+      temp.innerHTML = highlightedHTML;
+      node.parentNode.replaceChild(temp, node);
+      // Now highlight search terms inside the chunk
+      highlightTermsInChunk(temp, searchText);
+      temp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    // fallback: highlight search terms everywhere
+    highlightText(searchText, '');
+  }
+}
+
+// Highlight search terms inside a chunk
+function highlightTermsInChunk(chunkElem, searchText) {
+  if (!searchText) return;
+  const words = searchText.split(/\s+/).filter(w => w.length > 2);
+  for (const word of words) {
+    const regex = new RegExp(escapeRegExp(word), 'gi');
+    chunkElem.innerHTML = chunkElem.innerHTML.replace(regex, m => `<mark class="web-history-term-highlight">${m}</mark>`);
+  }
 }
 
 // Clear all highlights

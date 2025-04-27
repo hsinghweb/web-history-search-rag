@@ -280,7 +280,7 @@ function openSettings() {
 }
 
 // Open page and highlight text
-async function openPageAndHighlight(url, snippet, searchQuery) {
+async function openPageAndHighlight(url, chunkText, searchQuery) {
   try {
     // Create new tab
     const tab = await chrome.tabs.create({ url });
@@ -288,9 +288,7 @@ async function openPageAndHighlight(url, snippet, searchQuery) {
     // Wait for page to load
     chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
       if (tabId === tab.id && changeInfo.status === 'complete') {
-        // Remove the listener
         chrome.tabs.onUpdated.removeListener(listener);
-        
         // Inject content script and CSS
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -300,13 +298,11 @@ async function openPageAndHighlight(url, snippet, searchQuery) {
             target: { tabId: tab.id },
             files: ['highlight.css']
           }).then(() => {
-            // Wait a bit for the page to fully render
             setTimeout(() => {
-              // Send highlight message with both search query and match text
               chrome.tabs.sendMessage(tab.id, {
-                action: 'highlight',
-                searchText: searchQuery,
-                matchText: snippet
+                action: 'highlight-chunk',
+                chunkText: chunkText,
+                searchText: searchQuery
               });
             }, 1000);
           });

@@ -23,14 +23,27 @@
   animation: pulse 2s;
 }
 
+.web-history-chunk-highlight {
+  background: #ffeb3b;
+  border: 2px solid #fbc02d;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+  box-shadow: 0 0 8px #fbc02d88;
+}
+
+.web-history-chunk-highlight.highlight-pulse {
+  animation: pulse 2s;
+}
+
+.web-history-term-highlight {
+  background: #fff176;
+  border-bottom: 2px dashed #ffd54f;
+  padding: 0 2px;
+}
+
 @keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 235, 59, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(255, 235, 59, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 235, 59, 0);
-  }
+  0% { box-shadow: 0 0 0 0 #fbc02d88; }
+  70% { box-shadow: 0 0 0 10px #ffeb3b00; }
+  100% { box-shadow: 0 0 0 0 #fbc02d00; }
 }
