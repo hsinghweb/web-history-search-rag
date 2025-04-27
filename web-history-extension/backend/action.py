@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import logging
 import ast
 import re
+from tools import process_webpage, get_embedding
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -67,3 +68,13 @@ async def execute_tool(plan: str, tools_config: Dict[str, Any]) -> ToolResult:
             result=None,
             error=str(e)
         )
+
+# Wrapper for MCP tool: process_webpage
+async def action_process_webpage(webpage):
+    """Wrapper for MCP tool process_webpage"""
+    return await process_webpage(webpage)
+
+# Wrapper for MCP tool: get_embedding
+async def action_get_embedding(text):
+    """Wrapper for MCP tool get_embedding"""
+    return await get_embedding(text)

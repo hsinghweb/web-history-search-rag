@@ -5,13 +5,13 @@ import datetime
 from perception import extract_perception, PerceptionResult
 from memory import MemoryManager, MemoryItem
 from decision import generate_plan
-from action import execute_tool
+from action import execute_tool, action_process_webpage, action_get_embedding
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import logging
 from pathlib import Path
-from tools import WebPage, SearchQuery, SearchResult, SearchResponse, process_webpage, get_embedding
+from tools import WebPage, SearchQuery, SearchResult, SearchResponse
 from mcp.server.fastmcp import FastMCP
 
 # Configure paths
@@ -62,14 +62,14 @@ class Agent:
 
                 # Process webpage using MCP
                 logger.debug("Invoking process_webpage tool")
-                chunks = await process_webpage(request.webpage)
+                chunks = await action_process_webpage(request.webpage)
                 logger.info(f"Got {len(chunks)} chunks from webpage")
 
                 # Get embeddings and store in memory
                 for i, chunk in enumerate(chunks):
                     logger.debug(f"Processing chunk {i+1}/{len(chunks)}")
                     logger.info("Calling embedding model (Ollama)")
-                    embedding = await get_embedding(chunk)
+                    embedding = await action_get_embedding(chunk)
                     logger.debug(f"Got embedding for chunk {i+1} from Ollama")
 
                     self.memory.add_with_embedding(
@@ -92,7 +92,7 @@ class Agent:
                 query = request.search_query
 
                 logger.info("Calling embedding model (Ollama)")
-                query_embedding = await get_embedding(query)
+                query_embedding = await action_get_embedding(query)
                 logger.debug("Got query embedding from Ollama")
 
                 logger.debug("Searching memory with embedding")
